@@ -46,6 +46,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const webhookRoutes = require('./routes/webhook.routes');
 const scriptRoutes = require('./routes/scriptRoutes');
 const voiceRoutes = require('./routes/voiceRoutes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Use routes
 app.use('/api/users', userRoutes);
@@ -54,6 +55,7 @@ app.use('/api/campaigns', authMiddleware, campaignRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/scripts', authMiddleware, scriptRoutes);
 app.use('/api/voices', authMiddleware, voiceRoutes);
+app.use('/api/admin', authMiddleware, adminRoutes);
 app.use('/webhooks', webhookRoutes); // Webhook routes don't need auth
 
 // Initialize services

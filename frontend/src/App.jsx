@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Leads from './pages/Leads';
 import Campaigns from './pages/Campaigns';
+import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
 // Components
@@ -32,6 +33,7 @@ function App() {
             <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
             <Route path="/leads" element={<PrivateRoute><Layout><Leads /></Layout></PrivateRoute>} />
             <Route path="/campaigns" element={<PrivateRoute><Layout><Campaigns /></Layout></PrivateRoute>} />
+            <Route path="/admin" element={<PrivateRoute><Layout><Admin /></Layout></PrivateRoute>} />
             
             {/* 404 Route */}
             <Route path="/404" element={<NotFound />} />

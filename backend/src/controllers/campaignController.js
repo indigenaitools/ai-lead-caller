@@ -3,7 +3,7 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const ScriptTemplate = require('../models/ScriptTemplate');
 const Voice = require('../models/Voice');
-const leadGenerationQueue = require('../workers/leadGenerationWorker');
+const { scrapingQueue, callingQueue, enrichmentQueue } = require('../workers/callWorker');
 const callOrchestrator = require('../services/callOrchestrator');
 const logger = require('../utils/logger');
 
@@ -216,10 +216,12 @@ exports.startCampaign = async (req, res) => {
     campaign.startDate = new Date();
     await campaign.save();
     
-    // Add job to lead generation queue
-    const job = await leadGenerationQueue.add({
+    // Add job to scraping queue for lead generation
+    const job = await scrapingQueue.add('scrape-leads', {
       campaignId: campaign._id,
-      userId: req.user.id
+      query: campaign.targetIndustry || campaign.name,
+      location: campaign.targetLocation || 'United States',
+      maxResults: campaign.maxLeads || 100
     }, {
       attempts: 3,
       backoff: {
@@ -399,31 +401,47 @@ exports.startCalling = async (req, res) => {
     const callResults = [];
     const errors = [];
     
-    // Start calling leads
-    for (const lead of leads) {
+    // Add leads to calling queue
+    const jobPromises = leads.map(async (lead, index) => {
       try {
-        const result = await callOrchestrator.initiateCall(lead, campaign);
+        // Add delay between jobs to respect rate limiting
+        const delay = index * 2000; // 2 seconds between each call
+        
+        const job = await callingQueue.add('call-lead', {
+          leadId: lead._id,
+          campaignId: campaign._id,
+          retryCount: 0
+        }, {
+          delay,
+          attempts: 2,
+          backoff: {
+            type: 'fixed',
+            delay: 30000 // 30 second delay between retries
+          }
+        });
+        
         callResults.push({
           leadId: lead._id,
           leadName: lead.businessName,
-          callId: result.callId,
-          status: result.status
+          jobId: job.id,
+          status: 'queued',
+          delay
         });
         
-        // Update lead status
-        lead.status = 'calling';
-        await lead.save();
-        
-        logger.info(`Call initiated for lead ${lead.businessName}: ${result.callId}`);
+        logger.info(`Call job queued for lead ${lead.businessName}: ${job.id}`);
+        return job;
       } catch (error) {
-        logger.error(`Failed to initiate call for lead ${lead.businessName}: ${error.message}`);
+        logger.error(`Failed to queue call for lead ${lead.businessName}: ${error.message}`);
         errors.push({
           leadId: lead._id,
           leadName: lead.businessName,
           error: error.message
         });
+        return null;
       }
-    }
+    });
+    
+    await Promise.all(jobPromises);
     
     res.json({
       message: 'Calling started',
@@ -473,21 +491,30 @@ exports.callLead = async (req, res) => {
     }
     
     try {
-      const result = await callOrchestrator.initiateCall(lead, campaign);
-      
-      // Update lead status
-      lead.status = 'calling';
-      await lead.save();
+      // Add lead to calling queue with high priority
+      const job = await callingQueue.add('call-lead', {
+        leadId: lead._id,
+        campaignId: campaign._id,
+        retryCount: 0,
+        priority: true
+      }, {
+        priority: 1, // High priority for manual calls
+        attempts: 2,
+        backoff: {
+          type: 'fixed',
+          delay: 30000
+        }
+      });
       
       res.json({
-        message: 'Call initiated successfully',
-        callId: result.callId,
+        message: 'Call queued successfully',
+        jobId: job.id,
         lead: {
           id: lead._id,
           name: lead.businessName,
           phone: lead.phone
         },
-        status: result.status
+        status: 'queued'
       });
     } catch (error) {
       logger.error(`Failed to initiate call for lead ${lead.businessName}: ${error.message}`);
