@@ -1,0 +1,26 @@
+{
+  "name": "ai-lead-caller-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for AI-powered cold calling lead generation platform",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "axios": "^1.6.2",
+    "tailwindcss": "^3.3.6",
+    "recharts": "^2.10.3",
+    "react-hot-toast": "^2.4.1"
+  },
+  "devDependencies": {
+    "vite": "^5.0.10",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  },
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  }
+}

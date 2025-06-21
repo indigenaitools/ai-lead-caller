@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: ai-lead-caller-backend
+    restart: unless-stopped
+    ports:
+      - "12000:12000"
+    environment:
+      - NODE_ENV=development
+      - PORT=12000
+      - MONGODB_URI=mongodb://mongodb:27017/ai-lead-caller
+      - JWT_SECRET=your_jwt_secret_key_here
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - STRIPE_SECRET_KEY=your_stripe_secret_key_here
+      - STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
+    volumes:
+      - ../backend:/app
+      - /app/node_modules
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - app-network
+
+  # Frontend service
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: ai-lead-caller-frontend
+    restart: unless-stopped
+    ports:
+      - "12001:12001"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:12000/api
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # MongoDB service
+  mongodb:
+    image: mongo:latest
+    container_name: ai-lead-caller-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
+  # Redis service for job queue
+  redis:
+    image: redis:alpine
+    container_name: ai-lead-caller-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:
