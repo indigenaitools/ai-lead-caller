@@ -1,20 +1,22 @@
 const mongoose = require('mongoose');
 
 const LeadSchema = new mongoose.Schema({
-  user: {
+  campaignId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Campaign',
     required: true
   },
-  campaign: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Campaign'
-  },
-  firstName: {
+  businessName: {
     type: String,
+    required: true,
     trim: true
   },
-  lastName: {
+  phone: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  address: {
     type: String,
     trim: true
   },
@@ -23,76 +25,48 @@ const LeadSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
-  phone: {
-    type: String,
-    trim: true
-  },
-  company: {
-    type: String,
-    trim: true
-  },
-  position: {
-    type: String,
-    trim: true
-  },
-  linkedInUrl: {
-    type: String,
-    trim: true
-  },
   website: {
     type: String,
     trim: true
   },
-  industry: {
-    type: String,
-    trim: true
-  },
-  location: {
-    type: String,
-    trim: true
+  rating: {
+    type: Number,
+    min: 0,
+    max: 5
   },
   status: {
     type: String,
-    enum: ['new', 'contacted', 'qualified', 'converted', 'rejected'],
+    enum: ['new', 'called', 'interested', 'not-interested'],
     default: 'new'
   },
-  notes: {
-    type: String
+  callDuration: {
+    type: Number,
+    default: 0 // in seconds
   },
-  source: {
+  callRecording: {
+    type: String, // URL to recording
+    default: null
+  },
+  transcript: {
     type: String,
-    enum: ['linkedin', 'website', 'manual', 'api', 'other'],
-    default: 'manual'
+    default: null
   },
-  callHistory: [{
-    date: {
-      type: Date,
-      default: Date.now
-    },
-    duration: {
-      type: Number
-    },
-    notes: {
-      type: String
-    },
-    outcome: {
-      type: String,
-      enum: ['no answer', 'left message', 'spoke', 'meeting scheduled', 'not interested']
-    }
-  }],
-  tags: [{
-    type: String
-  }],
-  createdAt: {
+  calledAt: {
     type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+    default: null
   }
 }, {
-  timestamps: true
+  timestamps: true // This automatically adds createdAt and updatedAt
 });
+
+// Create indexes for better performance
+LeadSchema.index({ campaignId: 1 });
+LeadSchema.index({ status: 1 });
+LeadSchema.index({ businessName: 1 });
+LeadSchema.index({ phone: 1 });
+LeadSchema.index({ email: 1 });
+LeadSchema.index({ createdAt: 1 });
+LeadSchema.index({ calledAt: 1 });
+LeadSchema.index({ campaignId: 1, status: 1 });
 
 module.exports = mongoose.model('Lead', LeadSchema);

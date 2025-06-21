@@ -13,12 +13,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  firstName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  lastName: {
+  name: {
     type: String,
     required: true,
     trim: true
@@ -33,27 +28,38 @@ const UserSchema = new mongoose.Schema({
     default: 'user'
   },
   subscription: {
-    type: String,
-    enum: ['free', 'basic', 'premium', 'enterprise'],
-    default: 'free'
+    plan: {
+      type: String,
+      enum: ['free', 'basic', 'premium', 'enterprise'],
+      default: 'free'
+    },
+    credits: {
+      type: Number,
+      default: 0
+    },
+    expiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+    },
+    stripeCustomerId: String,
+    stripeSubscriptionId: String
   },
-  stripeCustomerId: {
-    type: String
-  },
-  credits: {
-    type: Number,
-    default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  apiKeys: {
+    groq: {
+      type: String,
+      default: null
+    },
+    plivo: {
+      type: String,
+      default: null
+    },
+    elevenlabs: {
+      type: String,
+      default: null
+    }
   }
 }, {
-  timestamps: true
+  timestamps: true // This automatically adds createdAt and updatedAt
 });
 
 // Hash password before saving
@@ -73,5 +79,12 @@ UserSchema.pre('save', async function(next) {
 UserSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// Create indexes for better performance
+UserSchema.index({ email: 1 });
+UserSchema.index({ 'subscription.plan': 1 });
+UserSchema.index({ 'subscription.expiresAt': 1 });
+UserSchema.index({ createdAt: 1 });
+UserSchema.index({ updatedAt: 1 });
 
 module.exports = mongoose.model('User', UserSchema);
