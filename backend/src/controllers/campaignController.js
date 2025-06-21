@@ -1,7 +1,11 @@
 const Campaign = require('../models/Campaign');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const ScriptTemplate = require('../models/ScriptTemplate');
+const Voice = require('../models/Voice');
 const leadGenerationQueue = require('../workers/leadGenerationWorker');
+const callOrchestrator = require('../services/callOrchestrator');
+const logger = require('../utils/logger');
 
 /**
  * Get all campaigns for a user
@@ -342,6 +346,242 @@ exports.getCampaignAnalytics = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in getCampaignAnalytics:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Start calling leads in a campaign
+ * @route POST /api/campaigns/:id/start-calling
+ * @access Private
+ */
+exports.startCalling = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+    
+    // Check if the campaign belongs to the user
+    if (campaign.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to start calling for this campaign' });
+    }
+    
+    // Check if campaign is active
+    if (campaign.status !== 'active') {
+      return res.status(400).json({ message: 'Campaign must be active to start calling' });
+    }
+    
+    // Get script template
+    const script = await ScriptTemplate.findById(campaign.scriptId);
+    if (!script) {
+      return res.status(400).json({ message: 'No script template found for this campaign' });
+    }
+    
+    // Get voice
+    const voice = await Voice.findById(campaign.voiceId);
+    if (!voice) {
+      return res.status(400).json({ message: 'No voice found for this campaign' });
+    }
+    
+    // Get leads that haven't been called yet
+    const leads = await Lead.find({
+      campaign: req.params.id,
+      status: 'new',
+      phone: { $exists: true, $ne: '' }
+    }).limit(req.body.maxCalls || 10);
+    
+    if (leads.length === 0) {
+      return res.status(400).json({ message: 'No leads available to call' });
+    }
+    
+    const callResults = [];
+    const errors = [];
+    
+    // Start calling leads
+    for (const lead of leads) {
+      try {
+        const result = await callOrchestrator.initiateCall(lead, campaign);
+        callResults.push({
+          leadId: lead._id,
+          leadName: lead.businessName,
+          callId: result.callId,
+          status: result.status
+        });
+        
+        // Update lead status
+        lead.status = 'calling';
+        await lead.save();
+        
+        logger.info(`Call initiated for lead ${lead.businessName}: ${result.callId}`);
+      } catch (error) {
+        logger.error(`Failed to initiate call for lead ${lead.businessName}: ${error.message}`);
+        errors.push({
+          leadId: lead._id,
+          leadName: lead.businessName,
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      message: 'Calling started',
+      totalLeads: leads.length,
+      successfulCalls: callResults.length,
+      failedCalls: errors.length,
+      callResults,
+      errors
+    });
+  } catch (error) {
+    logger.error('Error in startCalling:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Call a specific lead
+ * @route POST /api/campaigns/:id/call-lead/:leadId
+ * @access Private
+ */
+exports.callLead = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    const lead = await Lead.findById(req.params.leadId);
+    
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+    
+    if (!lead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
+    
+    // Check if the campaign belongs to the user
+    if (campaign.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to call leads for this campaign' });
+    }
+    
+    // Check if lead belongs to campaign
+    if (lead.campaign.toString() !== campaign._id.toString()) {
+      return res.status(400).json({ message: 'Lead does not belong to this campaign' });
+    }
+    
+    // Check if lead has a phone number
+    if (!lead.phone) {
+      return res.status(400).json({ message: 'Lead does not have a phone number' });
+    }
+    
+    try {
+      const result = await callOrchestrator.initiateCall(lead, campaign);
+      
+      // Update lead status
+      lead.status = 'calling';
+      await lead.save();
+      
+      res.json({
+        message: 'Call initiated successfully',
+        callId: result.callId,
+        lead: {
+          id: lead._id,
+          name: lead.businessName,
+          phone: lead.phone
+        },
+        status: result.status
+      });
+    } catch (error) {
+      logger.error(`Failed to initiate call for lead ${lead.businessName}: ${error.message}`);
+      res.status(500).json({ 
+        message: 'Failed to initiate call', 
+        error: error.message 
+      });
+    }
+  } catch (error) {
+    logger.error('Error in callLead:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Get active calls for a campaign
+ * @route GET /api/campaigns/:id/active-calls
+ * @access Private
+ */
+exports.getActiveCalls = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+    
+    // Check if the campaign belongs to the user
+    if (campaign.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to view calls for this campaign' });
+    }
+    
+    // Get active calls from orchestrator
+    const activeCalls = callOrchestrator.getActiveCalls()
+      .filter(call => call.campaignId.toString() === campaign._id.toString())
+      .map(call => ({
+        callId: call.callId,
+        leadName: call.lead.businessName,
+        leadPhone: call.lead.phone,
+        status: call.status,
+        currentStage: call.currentStage,
+        startTime: call.startTime,
+        duration: call.startTime ? Math.floor((new Date() - call.startTime) / 1000) : 0
+      }));
+    
+    res.json({
+      campaignId: campaign._id,
+      campaignName: campaign.name,
+      activeCalls,
+      totalActiveCalls: activeCalls.length
+    });
+  } catch (error) {
+    logger.error('Error in getActiveCalls:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * End a specific call
+ * @route POST /api/campaigns/:id/end-call/:callId
+ * @access Private
+ */
+exports.endCall = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+    
+    // Check if the campaign belongs to the user
+    if (campaign.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to end calls for this campaign' });
+    }
+    
+    const callId = req.params.callId;
+    
+    try {
+      const result = await callOrchestrator.forceEndCall(callId);
+      
+      res.json({
+        message: 'Call ended successfully',
+        callId: callId,
+        summary: result
+      });
+    } catch (error) {
+      logger.error(`Failed to end call ${callId}: ${error.message}`);
+      res.status(500).json({ 
+        message: 'Failed to end call', 
+        error: error.message 
+      });
+    }
+  } catch (error) {
+    logger.error('Error in endCall:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
