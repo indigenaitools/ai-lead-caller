@@ -19,7 +19,10 @@
     "axios": "^1.6.2",
     "jsonwebtoken": "^9.0.2",
     "bcrypt": "^5.1.1",
-    "stripe": "^14.9.0"
+    "stripe": "^14.9.0",
+    "plivo": "^4.58.0",
+    "ws": "^8.14.2",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
