@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const CampaignSchema = new mongoose.Schema({
-  user: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
@@ -11,66 +11,59 @@ const CampaignSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  description: {
-    type: String,
-    trim: true
-  },
-  targetIndustry: {
-    type: String,
-    trim: true
-  },
-  targetLocation: {
-    type: String,
-    trim: true
-  },
-  targetPositions: [{
-    type: String,
-    trim: true
-  }],
-  targetCompanySize: {
-    type: String,
-    enum: ['small', 'medium', 'large', 'enterprise', 'any'],
-    default: 'any'
-  },
-  searchCriteria: {
-    type: Object
-  },
   status: {
     type: String,
-    enum: ['draft', 'active', 'paused', 'completed'],
-    default: 'draft'
+    enum: ['active', 'paused', 'completed'],
+    default: 'active'
   },
-  startDate: {
-    type: Date
+  searchQuery: {
+    type: String,
+    required: true,
+    trim: true
   },
-  endDate: {
-    type: Date
+  location: {
+    type: String,
+    trim: true
   },
-  callScript: {
-    type: String
-  },
-  leadsGenerated: {
+  totalLeads: {
     type: Number,
     default: 0
   },
-  leadsContacted: {
+  calledLeads: {
     type: Number,
     default: 0
   },
-  leadsConverted: {
-    type: Number,
-    default: 0
+  script: {
+    type: String,
+    trim: true
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  voiceId: {
+    type: String,
+    trim: true
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  settings: {
+    maxLeads: {
+      type: Number,
+      default: 100
+    },
+    callDelay: {
+      type: Number,
+      default: 5 // seconds
+    },
+    maxRetries: {
+      type: Number,
+      default: 2
+    }
   }
 }, {
-  timestamps: true
+  timestamps: true // This automatically adds createdAt and updatedAt
 });
+
+// Create indexes for better performance
+CampaignSchema.index({ userId: 1 });
+CampaignSchema.index({ status: 1 });
+CampaignSchema.index({ createdAt: 1 });
+CampaignSchema.index({ updatedAt: 1 });
+CampaignSchema.index({ userId: 1, status: 1 });
 
 module.exports = mongoose.model('Campaign', CampaignSchema);

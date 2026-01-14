@@ -7,12 +7,11 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Leads from './pages/Leads';
-import LeadDetail from './pages/LeadDetail';
+import LeadsTable from './pages/LeadsTable';
 import Campaigns from './pages/Campaigns';
-import CampaignDetail from './pages/CampaignDetail';
-import CreateCampaign from './pages/CreateCampaign';
-import Profile from './pages/Profile';
-import Subscription from './pages/Subscription';
+import CampaignBuilder from './pages/CampaignBuilder';
+import Analytics from './pages/Analytics';
+import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
 // Components
@@ -35,13 +34,12 @@ function App() {
             
             {/* Private Routes */}
             <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
-            <Route path="/leads" element={<PrivateRoute><Layout><Leads /></Layout></PrivateRoute>} />
-            <Route path="/leads/:id" element={<PrivateRoute><Layout><LeadDetail /></Layout></PrivateRoute>} />
+            <Route path="/leads" element={<PrivateRoute><Layout><LeadsTable /></Layout></PrivateRoute>} />
+            <Route path="/leads/table" element={<PrivateRoute><Layout><LeadsTable /></Layout></PrivateRoute>} />
             <Route path="/campaigns" element={<PrivateRoute><Layout><Campaigns /></Layout></PrivateRoute>} />
-            <Route path="/campaigns/create" element={<PrivateRoute><Layout><CreateCampaign /></Layout></PrivateRoute>} />
-            <Route path="/campaigns/:id" element={<PrivateRoute><Layout><CampaignDetail /></Layout></PrivateRoute>} />
-            <Route path="/profile" element={<PrivateRoute><Layout><Profile /></Layout></PrivateRoute>} />
-            <Route path="/subscription" element={<PrivateRoute><Layout><Subscription /></Layout></PrivateRoute>} />
+            <Route path="/campaign-builder" element={<PrivateRoute><Layout><CampaignBuilder /></Layout></PrivateRoute>} />
+            <Route path="/analytics" element={<PrivateRoute><Layout><Analytics /></Layout></PrivateRoute>} />
+            <Route path="/admin" element={<PrivateRoute><Layout><Admin /></Layout></PrivateRoute>} />
             
             {/* 404 Route */}
             <Route path="/404" element={<NotFound />} />

@@ -28,4 +28,16 @@ router.post('/:id/pause', campaignController.pauseCampaign);
 // Get campaign analytics
 router.get('/:id/analytics', campaignController.getCampaignAnalytics);
 
+// Start calling leads in campaign
+router.post('/:id/start-calling', campaignController.startCalling);
+
+// Call a specific lead
+router.post('/:id/call-lead/:leadId', campaignController.callLead);
+
+// Get active calls for campaign
+router.get('/:id/active-calls', campaignController.getActiveCalls);
+
+// End a specific call
+router.post('/:id/end-call/:callId', campaignController.endCall);
+
 module.exports = router;
